@@ -34,16 +34,14 @@ const skipThirdPartyRequests = async opt => {
  */
 const enableLogging = opt => {
   const { page, options, route, onError, sourcemapStore } = opt;
-  page.on("console", msg => {
+  page.on("console", async msg => {
     const text = msg.text();
     if (text === "JSHandle@object") {
-      Promise.all(msg.args().map(objectToJson)).then(args =>
-        console.log(`💬  console.log at ${route}:`, ...args)
-      );
+      const args = await Promise.all(msg.args().map(objectToJson));
+      console.log(`💬  console.log at ${route}:`, ...args);
     } else if (text === "JSHandle@error") {
-      Promise.all(msg.args().map(errorToString)).then(args =>
-        console.log(`💬  console.log at ${route}:`, ...args)
-      );
+      const args = await Promise.all(msg.args().map(errorToString));
+      console.log(`💬  console.log at ${route}:`, ...args);
     } else {
       console.log(`️️️💬  console.log at ${route}:`, text);
     }
@@ -52,32 +50,23 @@ const enableLogging = opt => {
     console.log(`🔥  error at ${route}:`, msg);
     onError && onError();
   });
-  page.on("pageerror", e => {
+  page.on("pageerror", async e => {
     if (options.sourceMaps) {
-      mapStackTrace(e.stack || e.message, {
-        isChromeOrEdge: true,
-        store: sourcemapStore || {}
-      })
-        .then(result => {
-          // TODO: refactor mapStackTrace: return array not a string, return first row too
-          const stackRows = result.split("\n");
-          const puppeteerLine =
-            stackRows.findIndex(x => x.includes("puppeteer")) ||
-            stackRows.length - 1;
-
-          console.log(
-            `🔥  pageerror at ${route}: ${(e.stack || e.message).split(
-              "\n"
-            )[0] + "\n"}${stackRows.slice(0, puppeteerLine).join("\n")}`
-          );
-        })
-        .catch(e2 => {
-          console.log(`🔥  pageerror at ${route}:`, e);
-          console.log(
-            `️️️⚠️  warning at ${route} (error in source maps):`,
-            e2.message
-          );
+      try {
+        const result = await mapStackTrace(e.stack || e.message, {
+          isChromeOrEdge: true,
+          store: sourcemapStore || {}
         });
+        const stackRows = result.split("\n");
+        const puppeteerLine = stackRows.findIndex(x => x.includes("puppeteer")) || stackRows.length - 1;
+
+        console.log(
+          `🔥  pageerror at ${route}: ${(e.stack || e.message).split("\n")[0] + "\n"}${stackRows.slice(0, puppeteerLine).join("\n")}`
+        );
+      } catch (e2) {
+        console.log(`🔥  pageerror at ${route}:`, e);
+        console.log(`️️️⚠️  warning at ${route} (error in source maps):`, e2.message);
+      }
     } else {
       console.log(`🔥  pageerror at ${route}:`, e);
     }
@@ -87,9 +76,7 @@ const enableLogging = opt => {
     if (response.status() >= 400) {
       let route = "";
       try {
-        route = response._request
-          .headers()
-          .referer.replace(`http://localhost:${options.port}`, "");
+        route = response.request().headers().referer.replace(`http://localhost:${options.port}`, "");
       } catch (e) {}
       console.log(
         `️️️⚠️  warning at ${route}: got ${response.status()} HTTP code for ${response.url()}`
@@ -247,7 +234,7 @@ const crawl = async opt => {
         } finally {
           tracker.dispose();
         }
-        if (options.waitFor) await page.waitFor(options.waitFor);
+        if (options.waitFor) await page.waitForTimeout(options.waitFor);
         if (options.crawl) {
           const links = await getLinks({ page });
           links.forEach(addToQueue);
