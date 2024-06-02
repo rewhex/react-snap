@@ -195,12 +195,12 @@ const crawl = async opt => {
   };
 
   const browser = await puppeteer.launch({
-    headless: false,
+    headless: true,
     args: options.puppeteerArgs,
     executablePath: options.puppeteerExecutablePath,
     ignoreHTTPSErrors: options.puppeteerIgnoreHTTPSErrors,
     handleSIGINT: false,
-    slowMo: 1000
+    // slowMo: 1000
   });
 
   /**
