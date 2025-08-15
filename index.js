@@ -1,5 +1,6 @@
 const crawl = require("./src/puppeteer_utils.js").crawl;
 const http = require("http");
+const https = require("https");
 const express = require("express");
 const serveStatic = require("serve-static");
 const fallback = require("express-history-api-fallback");
@@ -22,7 +23,7 @@ const defaultOptions = {
   userAgent: "ReactSnap",
   // 4 params below will be refactored to one: `puppeteer: {}`
   // https://github.com/stereobooster/react-snap/issues/120
-  headless: true,
+  headless: 'old',
   puppeteer: {
     cache: true
   },
@@ -162,7 +163,9 @@ const preloadResources = opt => {
     if (/^data:|blob:/i.test(responseUrl)) return;
     const ct = response.headers()["content-type"] || "";
     const route = responseUrl.replace(basePath, "");
-    if (/^http:\/\/localhost/i.test(responseUrl)) {
+    console.log(responseUrl);
+
+    if (/^https?:\/\/127.0.0.1/i.test(responseUrl)) {
       if (uniqueResources.has(responseUrl)) return;
       if (preloadImages && /\.(png|jpg|jpeg|webp|gif|svg)$/.test(responseUrl)) {
         if (http2PushManifest) {
@@ -661,9 +664,22 @@ const run = async (userOptions, { fs } = { fs: nativeFs }) => {
     const app = express()
       .use(options.publicPath, serveStatic(sourceDir))
       .use(fallback("200.html", { root: sourceDir }));
-    const server = http.createServer(app);
-    server.listen(options.port);
-    return server;
+
+    if (process.env.HTTPS_CERT && process.env.HTTPS_KEY) {
+      const serverOptions = {
+        key: fs.readFileSync(process.env.HTTPS_KEY),
+        cert: fs.readFileSync(process.env.HTTPS_CERT),
+        ca: process.env.HTTPS_CA ? fs.readFileSync(process.env.HTTPS_CA) : undefined,
+      };
+
+      const server = https.createServer(serverOptions, app);
+      server.listen(options.port);
+      return server;
+    } else {
+      const server = http.createServer(app);
+      server.listen(options.port);
+      return server;
+    }
   };
 
   if (
@@ -690,7 +706,8 @@ const run = async (userOptions, { fs } = { fs: nativeFs }) => {
 
   const server = options.externalServer ? null : startServer(options);
 
-  const basePath = `http://localhost:${options.port}`;
+  const proto = process.env.HTTPS_CERT && process.env.HTTPS_KEY ? "https" : "http";
+  const basePath = `${proto}://127.0.0.1:${options.port}`;
   const publicPath = options.publicPath;
   const ajaxCache = {};
   const { http2PushManifest } = options;
