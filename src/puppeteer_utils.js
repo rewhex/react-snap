@@ -75,7 +75,8 @@ const enableLogging = opt => {
     if (response.status() >= 400) {
       let route = "";
       try {
-        route = response.request().headers().referer.replace(`http://localhost:${options.port}`, "");
+        const proto = process.env.HTTPS_CERT && process.env.HTTPS_KEY ? "https" : "http";
+        route = response.request().headers().referer.replace(`${proto}://127.0.0.1:${options.port}`, "");
       } catch (e) {}
       console.log(
         `️️️⚠️  warning at ${route}: got ${response.status()} HTTP code for ${response.url()}`
@@ -170,7 +171,7 @@ const crawl = async opt => {
     // Port can be null, therefore we need the null check
     const isOnAppPort = port && port.toString() === options.port.toString();
 
-    if (hostname === "localhost" && isOnAppPort && !uniqueUrls.has(newUrl) && !streamClosed) {
+    if (hostname === "127.0.0.1" && isOnAppPort && !uniqueUrls.has(newUrl) && !streamClosed) {
       uniqueUrls.add(newUrl);
       enqued++;
       queue.write(newUrl);
@@ -186,7 +187,7 @@ const crawl = async opt => {
     executablePath: options.puppeteerExecutablePath,
     ignoreHTTPSErrors: options.puppeteerIgnoreHTTPSErrors,
     handleSIGINT: false,
-    // slowMo: 1000
+    devtools: false,
   });
 
   /**
