@@ -163,7 +163,6 @@ const preloadResources = opt => {
     if (/^data:|blob:/i.test(responseUrl)) return;
     const ct = response.headers()["content-type"] || "";
     const route = responseUrl.replace(basePath, "");
-    console.log(responseUrl);
 
     if (/^https?:\/\/127.0.0.1/i.test(responseUrl)) {
       if (uniqueResources.has(responseUrl)) return;
