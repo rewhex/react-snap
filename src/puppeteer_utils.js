@@ -6,8 +6,7 @@ const path = require("path");
 const fs = require("fs");
 const { createTracker, augmentTimeoutError } = require("./tracker");
 
-const errorToString = jsHandle =>
-  jsHandle.executionContext().evaluate(e => e.toString(), jsHandle);
+const errorToString = jsHandle => jsHandle.evaluate(e => e.toString());
 
 const objectToJson = jsHandle => jsHandle.jsonValue();
 
@@ -182,7 +181,7 @@ const crawl = async opt => {
   };
 
   const browser = await puppeteer.launch({
-    headless: true,
+    headless: 'new',
     args: options.puppeteerArgs,
     executablePath: options.puppeteerExecutablePath,
     ignoreHTTPSErrors: options.puppeteerIgnoreHTTPSErrors,
